@@ -80,21 +80,25 @@ return removed;
 
 
 public synchronized List<Integer> getBookedSeats(String seatClass) {
-Set<Integer> booked = seatClass.equalsIgnoreCase("Economy") ? bookedEconomy : bookedBusiness;
-List<Integer> list = new ArrayList<>(booked);
-Collections.sort(list);
-return list;
+    if (seatClass.equalsIgnoreCase("Economy")) {
+        return new ArrayList<>(bookedEconomy);
+    } else {
+        return new ArrayList<>(bookedBusiness);
+    }
 }
-
 
 public synchronized List<Integer> getAvailableSeatsList(String seatClass) {
-int cap = seatClass.equalsIgnoreCase("Economy") ? ECON_CAPACITY : BUS_CAPACITY;
-Set<Integer> booked = seatClass.equalsIgnoreCase("Economy") ? bookedEconomy : bookedBusiness;
-List<Integer> available = new ArrayList<>();
-for (int i = 1; i <= cap; i++) if (!booked.contains(i)) available.add(i);
-return available;
-}
+    int cap = seatClass.equalsIgnoreCase("Economy") ? ECON_CAPACITY : BUS_CAPACITY;
+    Set<Integer> booked = seatClass.equalsIgnoreCase("Economy") ? bookedEconomy : bookedBusiness;
 
+    List<Integer> available = new ArrayList<>();
+    for (int i = 1; i <= cap; i++) {
+        if (!booked.contains(i)) {
+            available.add(i);
+        }
+    }
+    return available;
+}
 
 public synchronized void addToWaitlist(WaitlistEntry e) {
 if (e.getDesiredClass().equalsIgnoreCase("Economy")) waitlistEconomy.offer(e);

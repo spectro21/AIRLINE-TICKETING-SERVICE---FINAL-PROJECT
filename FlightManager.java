@@ -35,29 +35,33 @@ return false;
 }
 
 public Booking reserveWithSeat(Passenger p, String destination, String seatClass, int seatNumber) {
-Flight flight = flights.get(destination);
-if (flight == null) throw new IllegalArgumentException("Unknown destination: " + destination);
+    Flight flight = flights.get(destination);
+    if (flight == null) throw new IllegalArgumentException("Unknown destination: " + destination);
 
+    if (hasDuplicateBooking(p.getEmail(), destination)) {
+        return null; // caller will interpret as duplicate
+    }
 
-if (hasDuplicateBooking(p.getEmail(), destination)) {
-return null; // caller will interpret as duplicate
-}
+    if (!flight.isSeatAvailable(seatClass, seatNumber)) {
+        // seat already taken → add to waitlist
+        WaitlistEntry e = new WaitlistEntry(p, destination, seatClass);
+        flight.addToWaitlist(e);
+        return null; // still return null so MainApp knows it wasn't booked
+    }
 
+    boolean success = flight.bookSeat(seatClass, seatNumber);
+    if (!success) {
+        // fallback: add to waitlist
+        WaitlistEntry e = new WaitlistEntry(p, destination, seatClass);
+        flight.addToWaitlist(e);
+        return null;
+    }
 
-if (!flight.isSeatAvailable(seatClass, seatNumber)) {
-return null; // caller will handle (seat taken)
-}
-
-
-boolean success = flight.bookSeat(seatClass, seatNumber);
-if (!success) return null;
-
-
-String id = nextBookingId();
-Booking bk = new Booking(id, p, destination, seatClass, seatNumber);
-storeBooking(bk);
-// TODO: persist to DB via DatabaseConnector
-return bk;
+    String id = nextBookingId();
+    Booking bk = new Booking(id, p, destination, seatClass, seatNumber);
+    storeBooking(bk);
+    // TODO: persist to DB via DatabaseConnector
+    return bk;
 }
 
 
@@ -103,10 +107,71 @@ return new ArrayList<>(bookingsByEmail.getOrDefault(email.toLowerCase(), Collect
 
 
 public Booking getBookingById(String id) {
-return bookingsById.get(id);
+    // Direct match first
+    Booking b = bookingsById.get(id);
+    if (b != null) return b;
+
+    // If user entered raw number, try with BK prefix
+    if (!id.startsWith("BK")) {
+        return bookingsById.get("BK" + id);
+    }
+
+    return null;
 }
+//Try to find bookings by a flexible input (booking id, number, email, local-part, or name)
+public List<Booking> findBookingsByAny(String input) {
+ if (input == null) return Collections.emptyList();
+ String s = input.trim();
+ if (s.isEmpty()) return Collections.emptyList();
 
+ List<Booking> result = new ArrayList<>();
 
+ // 1) exact booking id
+ Booking b = bookingsById.get(s);
+ if (b != null) result.add(b);
+
+ // 2) try with BK prefix if user typed a number or plain id
+ if (result.isEmpty() && !s.toUpperCase().startsWith("BK")) {
+     Booking b2 = bookingsById.get("BK" + s);
+     if (b2 != null) result.add(b2);
+ }
+
+ // 3) try exact email (with @example.com if user supplied a plain number)
+ if (result.isEmpty()) {
+     String email = s.contains("@") ? s.toLowerCase() : (s + "@example.com").toLowerCase();
+     List<Booking> byEmail = bookingsByEmail.get(email);
+     if (byEmail != null && !byEmail.isEmpty()) result.addAll(byEmail);
+ }
+
+ // 4) try matching the local-part of stored emails (e.g., user typed "1212" but stored key is "1212@example.com")
+ if (result.isEmpty()) {
+     for (Map.Entry<String, List<Booking>> e : bookingsByEmail.entrySet()) {
+         String key = e.getKey(); // already lowercased when stored
+         String local = key.contains("@") ? key.substring(0, key.indexOf("@")) : key;
+         if (local.equalsIgnoreCase(s) || key.equalsIgnoreCase(s.toLowerCase())) {
+             result.addAll(e.getValue());
+         }
+     }
+ }
+
+ // 5) last resort: search by passenger name or exact passenger email stored
+ if (result.isEmpty()) {
+     for (Booking bk : bookingsById.values()) {
+         String emailLower = bk.getPassenger().getEmail().toLowerCase();
+         String nameLower = bk.getPassenger().getName().toLowerCase();
+         if (emailLower.equalsIgnoreCase(s) ||
+             emailLower.equalsIgnoreCase((s + "@example.com")) ||
+             nameLower.equalsIgnoreCase(s.toLowerCase())) {
+             result.add(bk);
+         }
+     }
+ }
+
+ // make unique and return
+ Map<String, Booking> uniq = new LinkedHashMap<>();
+ for (Booking bk : result) uniq.put(bk.getBookingId(), bk);
+ return new ArrayList<>(uniq.values());
+}
 //Cancel booking by id. Returns true if canceled.
 public boolean cancelBooking(String bookingId) {
 Booking b = bookingsById.remove(bookingId);
