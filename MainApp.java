@@ -134,6 +134,14 @@ public class MainApp {
     }
 
     
+    
+    
+    
+    
+    
+    
+    
+    
     //BOOKING FORM
     // New: Booking form that matches the provided reference image, functional buttons
     private static void showBookFlightForm() {
@@ -540,6 +548,23 @@ public class MainApp {
         }
     }
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
  // === Cancel Booking Form ===
     private static void showCancelForm() {
         JDialog dlg = new JDialog(mainFrame, "Cancel Booking", true);
@@ -739,6 +764,21 @@ public class MainApp {
     }
 
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
  // === Rebook Booking Form ===
     private static void showRebookForm() {
         JDialog dlg = new JDialog(mainFrame, "Rebook Booking", true);
@@ -835,6 +875,9 @@ public class MainApp {
         confirmBtn.setPreferredSize(new Dimension(100, 35));
         confirmBtn.setFocusPainted(false);
 
+        
+        
+        
         confirmBtn.addActionListener(e -> {
             String uid = idField.getText().trim();
             String name = nameField.getText().trim();
@@ -845,75 +888,40 @@ public class MainApp {
                 return;
             }
 
-            // Find the booking by UID
-            String lookupEmail = normalizeUidToEmail(uid);
-            Booking oldBooking = manager.getBookingById(lookupEmail);
             
+            
+            List<Booking> matches = manager.findBookingsByAny(uid);
+            Booking oldBooking = matches.isEmpty() ? null : matches.get(0);
+
             if (oldBooking == null) {
-                JOptionPane.showMessageDialog(dlg, "No booking found for ID: " + uid);
+                JOptionPane.showMessageDialog(dlg, "No booking found for ID/UID: " + uid);
                 return;
             }
 
-            int ans = JOptionPane.showConfirmDialog(dlg,
+            int ans = JOptionPane.showConfirmDialog(
+                    dlg,
                     "Rebook flight for\nName: " + name +
                             "\nUnique ID: " + uid +
                             "\nOption: " + option + "\n\nProceed?",
-                    "Confirm Rebook", JOptionPane.YES_NO_OPTION);
+                    "Confirm Rebook",
+                    JOptionPane.YES_NO_OPTION
+            );
 
             if (ans != JOptionPane.YES_OPTION) return;
 
-            // Cancel old booking first
-            manager.cancelBooking(lookupEmail);
-
-            // === Seat Selection (like Book form) ===
-            String destination = oldBooking.getDestination();
-            String seatClass = oldBooking.getSeatClass();
-            Passenger p = oldBooking.getPassenger();
-            Booking newBooking = null;
-
-            int pick = JOptionPane.showOptionDialog(dlg,
-                    "Choose seat selection method:",
-                    "Seat selection",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    new String[]{"Pick a seat", "Auto-assign"},
-                    "Auto-assign");
-
-            if (pick == 0) { // Manual pick
-                Flight flight = manager.getFlight(destination);
-                List<Integer> availableSeats = flight.getAvailableSeatsList(seatClass);
-                String seatsStr = availableSeats.size() > 20
-                        ? "Many seats available (" + availableSeats.size() + ")"
-                        : availableSeats.toString();
-                String s = JOptionPane.showInputDialog(dlg,
-                        "Available seats: " + seatsStr + "\nEnter seat number (1-40):");
-
-                if (s == null) return;
-                int seatNum;
-                try { seatNum = Integer.parseInt(s.trim()); }
-                catch (NumberFormatException ex2) {
-                    JOptionPane.showMessageDialog(dlg, "Invalid seat number");
-                    return;
-                }
-
-                newBooking = manager.reserveWithSeat(p, destination, seatClass, seatNum);
-            } else { // Auto-assign
-                newBooking = manager.reserveAutoAssign(p, destination, seatClass);
+            // Cancel using the actual bookingId
+            boolean cancelled = manager.cancelBooking(oldBooking.getBookingId());
+            if (!cancelled) {
+                JOptionPane.showMessageDialog(dlg,
+                        "Failed to cancel booking " + oldBooking.getBookingId(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+                return;
             }
 
-            if (newBooking != null) {
-                JOptionPane.showMessageDialog(dlg,
-                        "Rebook successful! New seat: " + newBooking.getSeatNumber(),
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                dlg.dispose();
-            } else {
-                JOptionPane.showMessageDialog(dlg,
-                        "Rebook failed. You may have been added to waitlist.",
-                        "Waitlist", JOptionPane.WARNING_MESSAGE);
-            }
+            // Close and redirect to booking form
+            dlg.dispose();
+            showBookFlightForm();
         });
-
         bottomRow.add(backBtn);
         bottomRow.add(confirmBtn);
         outer.add(bottomRow, BorderLayout.SOUTH);
@@ -922,6 +930,12 @@ public class MainApp {
         dlg.setResizable(false);
         dlg.setVisible(true);
     }
+    
+    
+    
+    
+    
+    
 //END LINE
  // === New Booking Options after Rebook ===
     private static void showRebookBookingOptions(String name, String uid) {
@@ -1072,7 +1086,6 @@ public class MainApp {
     private static void handleView() {
         StringBuilder sb = new StringBuilder("Flights summary (origin: Philippines):\n\n");
         sb.append(manager.getFlightsSummary());
-        sb.append("\n\nTip: Use Cancel/Rebook to see your bookings."); 	
         JOptionPane.showMessageDialog(mainFrame, sb.toString());
     }
  // Opens a static page with same size as main window
@@ -1081,27 +1094,102 @@ public class MainApp {
         staticFrame.setSize(1100, 680);
         staticFrame.setLocationRelativeTo(mainFrame);
 
+        // -- NEWLY ADDED --
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(Color.WHITE);
 
-        JLabel lbl = new JLabel(title, SwingConstants.CENTER);
-        lbl.setFont(new Font("Arial", Font.BOLD, 32));
-        lbl.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
-        panel.add(lbl, BorderLayout.NORTH);
+        // Header
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(0, 204, 255)); // cyan
+        JLabel lbl = new JLabel("OPPA AIRLINES", SwingConstants.CENTER);
+        lbl.setFont(new Font("Arial BLACK", Font.BOLD, 34));
+        lbl.setForeground(Color.BLACK);
+        headerPanel.add(lbl, BorderLayout.CENTER);
+        panel.add(headerPanel, BorderLayout.NORTH);
 
-        // ===== PLACEHOLDER CONTENT =====
-        JTextArea content = new JTextArea("Write your " + title + " content here...");
+        JTextArea content = new JTextArea();
         content.setFont(new Font("Serif", Font.PLAIN, 18));
         content.setEditable(false);
         content.setWrapStyleWord(true);
         content.setLineWrap(true);
-        panel.add(new JScrollPane(content), BorderLayout.CENTER);
+
+        // Different content for ABOUT US, CONTACT US, etc.
+        switch (title) {
+            case "ABOUT US" -> content.setText(
+                "At Oppa AirLines, we believe that traveling should be more than just reaching a destination, " +
+                "it should be a seamless, stress-free experience. Our mission is to make every journey simple, " +
+                "convenient, and enjoyable by offering reliable flights, easy booking options, and exceptional " +
+                "customer care. Whether you're flying for business or leisure, we are committed to connecting you " +
+                "to the world with comfort and efficiency. With a focus on safety, innovation, and hospitality, " +
+                "we strive to give our passengers peace of mind and the confidence to travel with ease."
+            );
+            case "CONTACT US" -> content.setText(
+                "✈️ Oppa Airlines - Contact Information\n\n" +
+                "📍 Office Location\n" +
+                "   Bangkal, Davao City, Philippines\n\n" +
+                "📞 Phone Numbers\n" +
+                "   Landline: (082) 234-5678\n" +
+                "   Mobile: 0917-987-6543\n\n" +
+                "✉️ Email Address\n" +
+                "   oppairlines.ph@gmail.com\n\n" +
+                "🕐 Office Hours\n" +
+                "   Monday - Friday: 8:30 AM - 6:00 PM\n" +
+                "   Saturday: 9:00 AM - 3:00 PM\n" +
+                "   Sunday: Closed\n\n" +
+                "📱 Social Media\n" +
+                "   Facebook: fb.com/OppaAirlinesPH\n" +
+                "   Instagram: @OppaAirlines"
+            );
+            case "PROMO" -> content.setText(
+                "🇨🇦 Canada - Up to 30% OFF on round-trip fares\n\n" +
+                "🇺🇸 USA - Save ₱5,000 on select flights\n\n" +
+                "🇸🇬 Singapore - Special fare starts at ₱6,999\n\n" +
+                "🇯🇵 Japan - Buy 1, Get 1 Half Off (limited seats only!)\n\n" +
+                "🇹🇭 Thailand - Round-trip fare as low as ₱8,499\n\n" +
+                "🇰🇷 Korea - FREE 20kg baggage allowance included\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "📅 Booking Period: September - December\n" +
+                "✈️ Travel Period: Until March next year\n" +
+                "📍 Visit us at Bangkal, Davao City\n" +
+                "📞 (082) 234-5678 | 📱 0917-987-6543\n" +
+                "✉️ oppairlines.ph@gmail.com\n" +
+                "📱 Follow us: fb.com/OppaAirlinesPH | @OppaAirlines\n" +
+                "✈️ Book early, travel happy - only with Oppa Airlines!"
+            );
+            case "NEED HELP?" -> content.setText(
+                "We're here to make your journey as smooth as possible. If you're experiencing issues with booking, " +
+                "payments, cancellations, or flight updates, check our quick guides and FAQs for instant solutions. " +
+                "Still stuck? Our support team is just a click or call away—ready to assist you 24/7.\n\n" +
+                "📞 Phone Numbers\n" +
+                "   Landline: (082) 234-5678\n" +
+                "   Mobile: 0917-987-6543\n\n" +
+                "✉️ Email Address\n" +
+                "   oppairlines.ph@gmail.com"
+            );
+            default -> content.setText("Write your " + title + " content here...");
+        }
+
+        // ===== CONTENT WRAPPER =====
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(new Color(230, 230, 230));
+        content.setBackground(new Color(230, 230, 230));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+        contentPanel.add(content, BorderLayout.CENTER);
+
+        panel.add(contentPanel, BorderLayout.CENTER);
 
         // Back button
-        JButton backBtn = new JButton("Back to Main Menu");
+        JButton backBtn = new JButton("BACK");
+        backBtn.setBackground(new Color(0, 153, 204));
+        backBtn.setForeground(Color.BLACK);
+        backBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        backBtn.setPreferredSize(new Dimension(100, 35));
         backBtn.addActionListener(e -> staticFrame.dispose());
-        JPanel bottom = new JPanel();
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 10));
+        bottom.setBackground(Color.WHITE);
         bottom.add(backBtn);
+
         panel.add(bottom, BorderLayout.SOUTH);
 
         staticFrame.add(panel);
