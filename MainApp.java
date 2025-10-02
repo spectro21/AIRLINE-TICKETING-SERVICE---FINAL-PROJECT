@@ -1,9 +1,12 @@
 package AIRLINE_TICKETING;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class MainApp {
@@ -18,14 +21,11 @@ public class MainApp {
         if (uid == null) return null;
         uid = uid.trim();
         if (uid.isEmpty()) return uid;
-        // if it already looks like an email, keep it as-is; otherwise append domain
         return uid.contains("@") ? uid : (uid + "@example.com");
     }
     
- // Theme colors (same as front page)
-    private static final Color BRAND_COLOR = new Color(0, 151, 178);  // teal = BOOK A FLIGHT
-    private static final Color BOX_GRAY    = new Color(230, 230, 230); // gray = input/seat boxes
-    
+    private static final Color BRAND_COLOR = new Color(0, 151, 178);
+    private static final Color BOX_GRAY    = new Color(230, 230, 230);
     
     private static void showMainMenu() {
         mainFrame = new JFrame("✈️ Oppa Flight Airline Ticketing System");
@@ -33,16 +33,14 @@ public class MainApp {
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setLayout(new BorderLayout());
 
-        // ===== Header Panel (cyan ) =====
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(0, 204, 255)); // cyan
+        headerPanel.setBackground(new Color(0, 204, 255));
         JLabel headerLabel = new JLabel("OPPA AIRLINES", SwingConstants.CENTER);
         headerLabel.setFont(new Font("Arial Black", Font.BOLD, 34));
         headerLabel.setForeground(Color.BLACK);
         headerPanel.add(headerLabel, BorderLayout.CENTER);
         headerPanel.setBorder(BorderFactory.createMatteBorder(4, 0, 4, 0, Color.CYAN));
 
-     // ===== Navigation Bar =====
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 40, 12));
         navPanel.setBackground(Color.WHITE);
         String[] navItems = {"ABOUT US", "CONTACT US", "PROMO", "NEED HELP?"};
@@ -54,7 +52,6 @@ public class MainApp {
             navBtn.setFocusPainted(false);
             navBtn.setPreferredSize(new Dimension(130, 36));
 
-            // Attach action listeners for static pages
             navBtn.addActionListener(e -> {
                 switch (item) {
                     case "ABOUT US" -> showStaticPage("ABOUT US");
@@ -63,21 +60,14 @@ public class MainApp {
                     case "NEED HELP?" -> showStaticPage("NEED HELP?");
                 }
             });
-
-            
-           
-           
-           
             
             navPanel.add(navBtn);
         }
-        // ===== Welcome Label (script-like) =====
+
         JLabel welcomeLabel = new JLabel("WELCOME TO OPPA AIRLINES", SwingConstants.CENTER);
-        // use a fallback italic font if Monotype Corsiva not present
         welcomeLabel.setFont(new Font("Serif", Font.ITALIC, 34));
         welcomeLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
 
-        // ===== Main Buttons (2x2 and Exit centered) =====
         JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
@@ -89,17 +79,15 @@ public class MainApp {
         JButton viewBtn = makeMainButton("VIEW FLIGHTS");
         JButton exitBtn = makeMainButton("EXIT");
 
-        // Hook actions (preserve original logic methods)
-        bookBtn.addActionListener(e -> showBookFlightForm()); // OPEN the new form (keeps logic functions intact)
-        cancelBtn.addActionListener(e -> showCancelForm()); // OLD //  cancelBtn.addActionListener(e -> handleCancel());
-        rebookBtn.addActionListener(e -> showRebookForm()); // OLD //  rebookBtn.addActionListener(e -> handleRebook());
-        viewBtn.addActionListener(e -> handleView());
+        bookBtn.addActionListener(e -> showBookFlightForm());
+        cancelBtn.addActionListener(e -> showCancelForm());
+        rebookBtn.addActionListener(e -> showRebookForm());
+        viewBtn.addActionListener(e -> handleView(manager));
         exitBtn.addActionListener(e -> {
             JOptionPane.showMessageDialog(mainFrame, "Goodbye!");
             System.exit(0);
         });
 
-        // Layout the 2x2 grid + centered exit
         gbc.gridx = 0;
         gbc.gridy = 0;
         mainPanel.add(bookBtn, gbc);
@@ -119,7 +107,6 @@ public class MainApp {
         gbc.gridwidth = 2;
         mainPanel.add(exitBtn, gbc);
 
-        // Center panel holds nav, welcome, and the main button area
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(Color.WHITE);
         centerPanel.add(navPanel, BorderLayout.NORTH);
@@ -133,17 +120,6 @@ public class MainApp {
         mainFrame.setVisible(true);
     }
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    //BOOKING FORM
-    // New: Booking form that matches the provided reference image, functional buttons
     private static void showBookFlightForm() {
         JDialog dlg = new JDialog(mainFrame, "Book a Flight", true);
         dlg.setSize(1000, 520);
@@ -154,17 +130,14 @@ public class MainApp {
         outer.setBackground(new Color(0, 204, 255));
         outer.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
 
-        // Top spacer for alignment consistent with screenshot
         outer.add(Box.createVerticalStrut(10), BorderLayout.NORTH);
 
-        // Form area - two columns
         JPanel formPanel = new JPanel(new GridBagLayout());
         formPanel.setBackground(Color.WHITE);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(18, 18, 6, 18);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // LEFT COLUMN (Name, Unique ID, CHOOSE SEAT label, PICK A SEAT button)
         JPanel leftCol = new JPanel();
         leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
         leftCol.setBackground(Color.WHITE);
@@ -180,7 +153,6 @@ public class MainApp {
         nameField.setBackground(new Color(230, 230, 230));
         nameField.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
         nameField.setForeground(Color.DARK_GRAY);
-        // placeholder behavior
         nameField.addFocusListener(new FocusAdapter() {
             @Override public void focusGained(FocusEvent e) {
                 if (nameField.getText().equals(namePlaceholder)) {
@@ -203,13 +175,12 @@ public class MainApp {
         leftCol.add(uidLabel);
         leftCol.add(Box.createVerticalStrut(8));
 
-        String uidPlaceholder = "Ex. 1111"; // sample placeholder
+        String uidPlaceholder = "Ex. 1111";
         JTextField uidField = new JTextField(uidPlaceholder);
         uidField.setFont(new Font("Arial", Font.PLAIN, 16));
         uidField.setBackground(new Color(230, 230, 230));
         uidField.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
         uidField.setForeground(Color.DARK_GRAY);
-        // placeholder behavior
         uidField.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
@@ -232,7 +203,7 @@ public class MainApp {
         leftCol.add(Box.createVerticalStrut(28));
 
         JButton chooseSeatSmall = new JButton("CHOOSE SEAT");
-        chooseSeatSmall.setBackground(new Color(0x00, 0x97, 0xB2)); // 👈 new color
+        chooseSeatSmall.setBackground(new Color(0x00, 0x97, 0xB2));
         chooseSeatSmall.setForeground(Color.BLACK);
         chooseSeatSmall.setFocusPainted(false);
         chooseSeatSmall.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
@@ -241,7 +212,6 @@ public class MainApp {
         leftCol.add(chooseSeatSmall);
         leftCol.add(Box.createVerticalStrut(12));
 
-        // PICK A SEAT (big gray button)
         JButton pickSeatBtn = new JButton("PICK A SEAT");
         pickSeatBtn.setFont(new Font("Arial", Font.PLAIN, 16));
         pickSeatBtn.setBackground(new Color(220, 220, 220));
@@ -251,7 +221,6 @@ public class MainApp {
         pickSeatBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         leftCol.add(pickSeatBtn);
 
-        // RIGHT COLUMN (Destination, Seat Class, AUTO ASSIGN button)
         JPanel rightCol = new JPanel();
         rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
         rightCol.setBackground(Color.WHITE);
@@ -282,7 +251,6 @@ public class MainApp {
         rightCol.add(seatCombo);
         rightCol.add(Box.createVerticalStrut(28));
 
-        // AUTO ASSIGN (big gray button)
         JButton autoAssignBtn = new JButton("AUTO ASSIGN");
         autoAssignBtn.setFont(new Font("Arial", Font.PLAIN, 16));
         autoAssignBtn.setBackground(new Color(220, 220, 220));
@@ -292,10 +260,9 @@ public class MainApp {
         autoAssignBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         rightCol.add(autoAssignBtn);
 
-        // === Seat selection panel (hidden by default) ===
-        JPanel seatPanel = new JPanel(new GridLayout(5, 8, 5, 5)); // 5 rows x 8 cols = 40 seats
+        JPanel seatPanel = new JPanel(new GridLayout(5, 8, 5, 5));
         seatPanel.setBackground(Color.WHITE);
-        seatPanel.setVisible(false); // show only after clicking "PICK A SEAT"
+        seatPanel.setVisible(false);
 
         JToggleButton[] seatButtons = new JToggleButton[40];
         for (int i = 0; i < 40; i++) {
@@ -303,7 +270,6 @@ public class MainApp {
             JToggleButton btn = new JToggleButton(String.valueOf(seatNum));
             btn.setBackground(Color.LIGHT_GRAY);
             btn.addActionListener(ev -> {
-                // clear selection first
                 for (JToggleButton b : seatButtons) {
                     if (b != null) b.setSelected(false);
                 }
@@ -315,7 +281,6 @@ public class MainApp {
         leftCol.add(Box.createVerticalStrut(15));
         leftCol.add(seatPanel);
 
-        // Place left and right columns into formPanel (two columns)
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.5;
@@ -326,10 +291,8 @@ public class MainApp {
         gbc.gridy = 0;
         formPanel.add(rightCol, gbc);
 
-        // Add form to outer
         outer.add(formPanel, BorderLayout.CENTER);
 
-        // ===== Bottom row with Back + Confirm =====
         JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         bottomRow.setBackground(Color.WHITE);
 
@@ -339,7 +302,6 @@ public class MainApp {
         backBtn.setFont(new Font("Arial", Font.BOLD, 12));
         backBtn.setPreferredSize(new Dimension(100, 35));
         backBtn.setFocusPainted(false);
-        // Close this dialog when back is pressed
         backBtn.addActionListener(e -> dlg.dispose());
 
         JButton confirmBtn = new JButton("CONFIRM");
@@ -348,23 +310,18 @@ public class MainApp {
         confirmBtn.setFont(new Font("Arial", Font.BOLD, 12));
         confirmBtn.setPreferredSize(new Dimension(100, 35));
         confirmBtn.setFocusPainted(false);
-        // (no placeholder listener here — we'll attach the real one below)
 
         bottomRow.add(backBtn);
         bottomRow.add(confirmBtn);
 
         outer.add(bottomRow, BorderLayout.SOUTH);
 
-        // ---- Attach listeners BEFORE showing dialog ----
-
-        // Toggle seat panel visibility when PICK A SEAT pressed
         pickSeatBtn.addActionListener(e -> {
             seatPanel.setVisible(!seatPanel.isVisible());
             leftCol.revalidate();
             leftCol.repaint();
         });
 
-        // AUTO-ASSIGN handler
         autoAssignBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String uid = uidField.getText().trim();
@@ -390,14 +347,12 @@ public class MainApp {
             }
         });
 
-        // CONFIRM handler (use selected seat from seatButtons)
         confirmBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String uid = uidField.getText().trim();
             String destination = (String) destCombo.getSelectedItem();
             String seatClass = (String) seatCombo.getSelectedItem();
 
-            // find selected seat
             int chosenSeat = -1;
             for (JToggleButton b : seatButtons) {
                 if (b != null && b.isSelected()) {
@@ -426,37 +381,32 @@ public class MainApp {
                     "Success", JOptionPane.INFORMATION_MESSAGE);
                 dlg.dispose();
             } else {
-                // Seat already taken → added to waitlist
                 JOptionPane.showMessageDialog(dlg,
-                    "Seat already taken, you’ve been added to the waitlist for " + seatClass + " to " + destination + ".",
+                    "Seat already taken, you've been added to the waitlist for " + seatClass + " to " + destination + ".",
                     "Waitlist", JOptionPane.INFORMATION_MESSAGE);
                 dlg.dispose();
             }
         });
 
-        // Finally add outer to dialog and show (after UI is fully built and listeners attached)
         dlg.add(outer);
         dlg.setResizable(false);
         dlg.setVisible(true);
     }
 
-    
-    
-    // Small helper to create those teal rectangle labels like in the screenshot
     private static JLabel makeTealLabel(String text) {
         JLabel lbl = new JLabel(text);
         lbl.setFont(new Font("Arial", Font.BOLD, 16));
         lbl.setOpaque(true);
-        lbl.setBackground(BRAND_COLOR);  //  same teal as BOOK A FLIGHT
+        lbl.setBackground(BRAND_COLOR);
         lbl.setForeground(Color.BLACK);
         lbl.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
         return lbl;
     }
-    // Helper to create main big buttons (teal look)
+
     private static JButton makeMainButton(String text) {
         JButton btn = new JButton(text);
         btn.setPreferredSize(new Dimension(420, 84));
-        btn.setBackground(new Color(0, 153, 204)); // teal
+        btn.setBackground(new Color(0, 153, 204));
         btn.setForeground(Color.BLACK);
         btn.setFont(new Font("Arial", Font.BOLD, 18));
         btn.setFocusPainted(false);
@@ -464,7 +414,6 @@ public class MainApp {
         return btn;
     }
 
-    // ---- Logic remains the same as original (copied verbatim) ----
     private static JButton makeButton(String text, Color bgColor) {
         JButton btn = new JButton(text);
         btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
@@ -478,113 +427,22 @@ public class MainApp {
         return btn;
     }
 
-    // ---- Original booking logic (unchanged) ----
-    private static void handleReserve() {
-        try {
-            String name = JOptionPane.showInputDialog(mainFrame, "Enter passenger name:");
-            if (name == null) return;
-            String email = JOptionPane.showInputDialog(mainFrame, "Enter passenger email (unique id):");
-            if (email == null) return;
-            Passenger p = new Passenger(name, email);
-
-            Object[] dests = manager.getDestinations().toArray();
-            String destination = (String) JOptionPane.showInputDialog(mainFrame, "Choose destination:", "Destinations",
-                    JOptionPane.PLAIN_MESSAGE, null, dests, dests[0]);
-            if (destination == null) return;
-
-            String[] classes = {"Economy", "Business"};
-            String seatClass = (String) JOptionPane.showInputDialog(mainFrame, "Choose seat class:", "Seat Class",
-                    JOptionPane.PLAIN_MESSAGE, null, classes, classes[0]);
-            if (seatClass == null) return;
-
-            Flight flight = manager.getFlight(destination);
-            if (manager.hasDuplicateBooking(p.getEmail(), destination)) {
-                JOptionPane.showMessageDialog(mainFrame, "You already have a booking to " + destination + ".");
-                return;
-            }
-
-            int avail = flight.getAvailableSeatCount(seatClass);
-            if (avail <= 0) {
-                int wantWait = JOptionPane.showConfirmDialog(mainFrame,
-                        "No seats available in " + seatClass + ". Add to waitlist?", "Waitlist",
-                        JOptionPane.YES_NO_OPTION);
-                if (wantWait == JOptionPane.YES_OPTION) {
-                    manager.addToWaitlist(p, destination, seatClass);
-                    JOptionPane.showMessageDialog(mainFrame,
-                            "Added to waitlist for " + destination + " (" + seatClass + ")");
-                }
-                return;
-            }
-
-            int pick = JOptionPane.showOptionDialog(mainFrame, "Choose seat selection method:", "Seat selection",
-                    JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-                    null, new String[]{"Pick a seat", "Auto-assign"}, "Auto-assign");
-
-            if (pick == 0) {
-                java.util.List<Integer> availableSeats = flight.getAvailableSeatsList(seatClass);
-                String seatsStr = availableSeats.size() > 20
-                        ? "Many seats available (" + availableSeats.size() + ")"
-                        : availableSeats.toString();
-                String s = JOptionPane.showInputDialog(mainFrame, "Available seats: " + seatsStr + "\nEnter seat number (1-40):");
-                if (s == null) return;
-                int seatNum;
-                try { seatNum = Integer.parseInt(s.trim()); }
-                catch (NumberFormatException ex) { JOptionPane.showMessageDialog(mainFrame, "Invalid seat number"); return; }
-                if (!flight.isSeatAvailable(seatClass, seatNum)) {
-                    JOptionPane.showMessageDialog(mainFrame, "Seat not available.");
-                    return;
-                }
-                Booking bk = manager.reserveWithSeat(p, destination, seatClass, seatNum);
-                JOptionPane.showMessageDialog(mainFrame, bk != null ? "Booking successful: " + bk : "Booking failed.");
-            } else {
-                Booking bk = manager.reserveAutoAssign(p, destination, seatClass);
-                JOptionPane.showMessageDialog(mainFrame, bk != null
-                        ? "Booking successful: " + bk
-                        : "All seats full. Added to waitlist for " + seatClass + " to " + destination + ".");
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(mainFrame, "Error: " + ex.getMessage());
-        }
-    }
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
- // === Cancel Booking Form ===
     private static void showCancelForm() {
         JDialog dlg = new JDialog(mainFrame, "Cancel Booking", true);
         dlg.setSize(980, 420);
         dlg.setLayout(new BorderLayout());
         dlg.setLocationRelativeTo(mainFrame);
 
-        // --- Header (OPPA AIRLINES) ---
-     // --- Top light blue strip (no text) ---
         JPanel header = new JPanel();
-        header.setBackground(new Color(0, 204, 255)); // same light blue as your Book a Flight window
-        header.setPreferredSize(new Dimension(0, 16)); // small strip height
+        header.setBackground(new Color(0, 204, 255));
+        header.setPreferredSize(new Dimension(0, 16));
         dlg.add(header, BorderLayout.NORTH);
 
-     // --- Outer content area (white) ---
         JPanel outer = new JPanel(new BorderLayout());
         outer.setBackground(Color.WHITE);
         outer.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 16, 16, 16, new Color(0, 204, 255)), // thick light blue border
-                BorderFactory.createEmptyBorder(20, 30, 18, 30)                          // inner padding
+                BorderFactory.createMatteBorder(0, 16, 16, 16, new Color(0, 204, 255)),
+                BorderFactory.createEmptyBorder(20, 30, 18, 30)
         ));
         
         JPanel formPanel = new JPanel(new GridBagLayout());
@@ -594,7 +452,6 @@ public class MainApp {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 0.5;
 
-        // -------- LEFT COLUMN --------
         JPanel leftCol = new JPanel();
         leftCol.setBackground(Color.WHITE);
         leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
@@ -616,7 +473,6 @@ public class MainApp {
         leftCol.add(Box.createVerticalStrut(8));
         leftCol.add(idField);
 
-        // -------- RIGHT COLUMN --------
         JPanel rightCol = new JPanel();
         rightCol.setBackground(Color.WHITE);
         rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
@@ -634,7 +490,6 @@ public class MainApp {
         rightCol.add(Box.createVerticalStrut(8));
         rightCol.add(reasonCombo);
 
-        // Add columns to formPanel
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(leftCol, gbc);
         gbc.gridx = 1; gbc.gridy = 0;
@@ -642,22 +497,19 @@ public class MainApp {
 
         outer.add(formPanel, BorderLayout.CENTER);
 
-        // --- Bottom row (right-aligned buttons) ---
         JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 18, 10));
         bottomRow.setBackground(Color.WHITE);
 
         JButton backBtn = new JButton("BACK");
-     // style BACK as secondary button
-     backBtn.setBackground(new Color(0, 153, 204));
-     backBtn.setForeground(Color.BLACK);              // black text
-     backBtn.setFont(new Font("Arial", Font.BOLD, 12));
-     backBtn.setPreferredSize(new Dimension(100, 35));
-     backBtn.setFocusPainted(false);
-     backBtn.setBorder(BorderFactory.createLineBorder(new Color(0, 153, 204), 2)); // blue border
-     backBtn.addActionListener(e -> dlg.dispose());
+        backBtn.setBackground(new Color(0, 153, 204));
+        backBtn.setForeground(Color.BLACK);
+        backBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        backBtn.setPreferredSize(new Dimension(100, 35));
+        backBtn.setFocusPainted(false);
+        backBtn.setBorder(BorderFactory.createLineBorder(new Color(0, 153, 204), 2));
+        backBtn.addActionListener(e -> dlg.dispose());
 
         JButton confirmBtn = new JButton("CONFIRM");
-        // use inspo confirm button style
         confirmBtn.setBackground(new Color(0, 153, 204));
         confirmBtn.setForeground(Color.BLACK);
         confirmBtn.setFont(new Font("Arial", Font.BOLD, 12));
@@ -678,24 +530,14 @@ public class MainApp {
                     "Confirm Cancel", JOptionPane.YES_NO_OPTION);
             if (ans != JOptionPane.YES_OPTION) return;
 
-            // ===== TODO: plug your cancel logic here =====
-            
-            // Example patterns (pick one that matches your manager API):
-            // boolean ok = manager.cancelBooking(uid);                        // if manager accepts String ID
-            // boolean ok = manager.cancelBooking(Integer.parseInt(uid));     // if manager expects int
-            // Or find booking object by unique id/email then call manager.cancelBooking(bookingId)
-            //
-            // I won't call manager.* methods directly here so this method compiles cleanly.
             boolean ok = false;
             try {
-                // Try to locate booking by ID (with or without BK prefix)
                 Booking booking = manager.getBookingById(uid);
 
                 if (booking == null) {
-                    // fallback: try broader search (email, name, etc.)
                     List<Booking> matches = manager.findBookingsByAny(uid);
                     if (!matches.isEmpty()) {
-                        booking = matches.get(0); // pick first match
+                        booking = matches.get(0);
                     }
                 }
 
@@ -704,13 +546,12 @@ public class MainApp {
                     return;
                 }
 
-                ok = manager.cancelBooking(booking.getBookingId());  // pass normalized ID
+                ok = manager.cancelBooking(booking.getBookingId());
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dlg, "Error while canceling: " + ex.getMessage());
                 return;
             }
 
-            // Example fallback: show message if user didn't implement cancellation yet
             if (!ok) {
                 JOptionPane.showMessageDialog(dlg,
                         "Cancellation didn't run. Please replace the TODO area with your manager cancellation call (see commented examples).");
@@ -729,9 +570,6 @@ public class MainApp {
         dlg.setVisible(true);
     }
 
-
-
-    // === Helper - style inputs (grey background, padding, preferred size) ===
     private static void styleInputField(JTextField field) {
         field.setFont(new Font("Arial", Font.PLAIN, 16));
         field.setBackground(new Color(230, 230, 230));
@@ -739,7 +577,6 @@ public class MainApp {
         field.setPreferredSize(new Dimension(420, 40));
         field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         field.setAlignmentX(Component.LEFT_ALIGNMENT);
-        // simple focus behavior to clear example text once focused
         field.addFocusListener(new java.awt.event.FocusAdapter() {
             public void focusGained(java.awt.event.FocusEvent e) {
                 if (field.getText().startsWith("Ex.")) {
@@ -748,51 +585,30 @@ public class MainApp {
             }
             public void focusLost(java.awt.event.FocusEvent e) {
                 if (field.getText().trim().isEmpty()) {
-                    // keep it empty (or re-add placeholder text if you prefer)
                 }
             }
         });
     }
 
-    // === Helper - style action buttons to match small teal rectangles ===
     private static void styleActionButton(JButton btn) {
-        btn.setBackground(new Color(0, 133, 140)); // teal
+        btn.setBackground(new Color(0, 133, 140));
         btn.setForeground(Color.BLACK);
         btn.setFocusPainted(false);
         btn.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
         btn.setPreferredSize(new Dimension(120, 36));
     }
 
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
- // === Rebook Booking Form ===
     private static void showRebookForm() {
         JDialog dlg = new JDialog(mainFrame, "Rebook Booking", true);
         dlg.setSize(980, 420);
         dlg.setLayout(new BorderLayout());
         dlg.setLocationRelativeTo(mainFrame);
 
-        // --- Header strip ---
         JPanel header = new JPanel();
         header.setBackground(new Color(0, 204, 255));
         header.setPreferredSize(new Dimension(0, 16));
         dlg.add(header, BorderLayout.NORTH);
 
-        // --- Outer content area ---
         JPanel outer = new JPanel(new BorderLayout());
         outer.setBackground(Color.WHITE);
         outer.setBorder(BorderFactory.createCompoundBorder(
@@ -807,7 +623,6 @@ public class MainApp {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 0.5;
 
-        // -------- LEFT COLUMN --------
         JPanel leftCol = new JPanel();
         leftCol.setBackground(Color.WHITE);
         leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
@@ -829,7 +644,6 @@ public class MainApp {
         leftCol.add(Box.createVerticalStrut(8));
         leftCol.add(idField);
 
-        // -------- RIGHT COLUMN --------
         JPanel rightCol = new JPanel();
         rightCol.setBackground(Color.WHITE);
         rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
@@ -847,7 +661,6 @@ public class MainApp {
         rightCol.add(Box.createVerticalStrut(8));
         rightCol.add(optionCombo);
 
-        // Add columns to formPanel
         gbc.gridx = 0; gbc.gridy = 0;
         formPanel.add(leftCol, gbc);
         gbc.gridx = 1; gbc.gridy = 0;
@@ -855,7 +668,6 @@ public class MainApp {
 
         outer.add(formPanel, BorderLayout.CENTER);
 
-        // --- Bottom row buttons ---
         JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 18, 10));
         bottomRow.setBackground(Color.WHITE);
 
@@ -875,9 +687,6 @@ public class MainApp {
         confirmBtn.setPreferredSize(new Dimension(100, 35));
         confirmBtn.setFocusPainted(false);
 
-        
-        
-        
         confirmBtn.addActionListener(e -> {
             String uid = idField.getText().trim();
             String name = nameField.getText().trim();
@@ -888,8 +697,6 @@ public class MainApp {
                 return;
             }
 
-            
-            
             List<Booking> matches = manager.findBookingsByAny(uid);
             Booking oldBooking = matches.isEmpty() ? null : matches.get(0);
 
@@ -909,7 +716,6 @@ public class MainApp {
 
             if (ans != JOptionPane.YES_OPTION) return;
 
-            // Cancel using the actual bookingId
             boolean cancelled = manager.cancelBooking(oldBooking.getBookingId());
             if (!cancelled) {
                 JOptionPane.showMessageDialog(dlg,
@@ -918,7 +724,6 @@ public class MainApp {
                 return;
             }
 
-            // Close and redirect to booking form
             dlg.dispose();
             showBookFlightForm();
         });
@@ -930,14 +735,7 @@ public class MainApp {
         dlg.setResizable(false);
         dlg.setVisible(true);
     }
-    
-    
-    
-    
-    
-    
-//END LINE
- // === New Booking Options after Rebook ===
+
     private static void showRebookBookingOptions(String name, String uid) {
         JDialog dlg = new JDialog(mainFrame, "Rebook Options", true);
         dlg.setSize(1000, 520);
@@ -954,7 +752,6 @@ public class MainApp {
         gbc.insets = new Insets(18, 18, 6, 18);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // ===== LEFT COLUMN =====
         JPanel leftCol = new JPanel();
         leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
         leftCol.setBackground(Color.WHITE);
@@ -963,7 +760,7 @@ public class MainApp {
         leftCol.add(nameLabel);
         leftCol.add(Box.createVerticalStrut(8));
 
-        JTextField nameField = new JTextField(name); // pre-filled
+        JTextField nameField = new JTextField(name);
         styleInputField(nameField);
         leftCol.add(nameField);
         leftCol.add(Box.createVerticalStrut(20));
@@ -972,7 +769,7 @@ public class MainApp {
         leftCol.add(uidLabel);
         leftCol.add(Box.createVerticalStrut(8));
 
-        JTextField uidField = new JTextField(uid); // pre-filled
+        JTextField uidField = new JTextField(uid);
         styleInputField(uidField);
         leftCol.add(uidField);
         leftCol.add(Box.createVerticalStrut(28));
@@ -990,7 +787,6 @@ public class MainApp {
         pickSeatBtn.setPreferredSize(new Dimension(420, 48));
         leftCol.add(pickSeatBtn);
 
-        // ===== RIGHT COLUMN =====
         JPanel rightCol = new JPanel();
         rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
         rightCol.setBackground(Color.WHITE);
@@ -1027,7 +823,6 @@ public class MainApp {
         autoAssignBtn.setPreferredSize(new Dimension(420, 48));
         rightCol.add(autoAssignBtn);
 
-        // Add columns
         gbc.gridx = 0; gbc.gridy = 0;
         gbc.weightx = 0.5;
         formPanel.add(leftCol, gbc);
@@ -1036,7 +831,6 @@ public class MainApp {
 
         outer.add(formPanel, BorderLayout.CENTER);
 
-        // ===== BOTTOM ROW =====
         JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         bottomRow.setBackground(Color.WHITE);
 
@@ -1079,43 +873,60 @@ public class MainApp {
         dlg.setVisible(true);
     }
 
-    
-    
-    
-    
-    private static void handleView() {
-        StringBuilder sb = new StringBuilder("Flights summary (origin: Philippines):\n\n");
-        sb.append(manager.getFlightsSummary());
-        JOptionPane.showMessageDialog(mainFrame, sb.toString());
+    private static void handleView(FlightManager flightManager) {
+        ViewFlightsFrame viewFrame = new ViewFlightsFrame(flightManager);
+        viewFrame.setVisible(true);
     }
- // Opens a static page with same size as main window
+
     private static void showStaticPage(String title) {
         JFrame staticFrame = new JFrame(title);
         staticFrame.setSize(1100, 680);
         staticFrame.setLocationRelativeTo(mainFrame);
+        
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
 
-        // -- NEWLY ADDED --
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(Color.WHITE);
-
-        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(0, 204, 255)); // cyan
-        JLabel lbl = new JLabel("OPPA AIRLINES", SwingConstants.CENTER);
-        lbl.setFont(new Font("Arial BLACK", Font.BOLD, 34));
-        lbl.setForeground(Color.BLACK);
-        headerPanel.add(lbl, BorderLayout.CENTER);
-        panel.add(headerPanel, BorderLayout.NORTH);
+        headerPanel.setBackground(new Color(0, 204, 255));
+        headerPanel.setBorder(BorderFactory.createLineBorder(new Color(0, 204, 255), 4));
+        
+        JLabel headerLabel = new JLabel("OPPA AIRLINES", SwingConstants.CENTER);
+        headerLabel.setFont(new Font("Arial Black", Font.BOLD, 34));
+        headerLabel.setForeground(Color.BLACK);
+        headerLabel.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
+        headerPanel.add(headerLabel, BorderLayout.CENTER);
+        
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
 
-        JTextArea content = new JTextArea();
-        content.setFont(new Font("Serif", Font.PLAIN, 18));
-        content.setEditable(false);
-        content.setWrapStyleWord(true);
-        content.setLineWrap(true);
+        JPanel contentWrapper = new JPanel(new BorderLayout());
+        contentWrapper.setBackground(Color.WHITE);
+        contentWrapper.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Different content for ABOUT US, CONTACT US, etc.
-        switch (title) {
-            case "ABOUT US" -> content.setText(
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        titleLabel.setOpaque(true);
+        titleLabel.setBackground(new Color(0, 204, 255));
+        titleLabel.setForeground(Color.BLACK);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
+        
+        JPanel titlePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        titlePanel.setBackground(Color.WHITE);
+        titlePanel.add(titleLabel);
+        contentWrapper.add(titlePanel, BorderLayout.NORTH);
+
+        JPanel contentPanel = new JPanel(new BorderLayout());
+        contentPanel.setBackground(new Color(210, 210, 210));
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+
+        if (title.equals("ABOUT US")) {
+            JTextArea textArea = new JTextArea();
+            textArea.setFont(new Font("Arial", Font.PLAIN, 14));
+            textArea.setBackground(new Color(210, 210, 210));
+            textArea.setForeground(Color.BLACK);
+            textArea.setEditable(false);
+            textArea.setWrapStyleWord(true);
+            textArea.setLineWrap(true);
+            textArea.setText(
                 "At Oppa AirLines, we believe that traveling should be more than just reaching a destination, " +
                 "it should be a seamless, stress-free experience. Our mission is to make every journey simple, " +
                 "convenient, and enjoyable by offering reliable flights, easy booking options, and exceptional " +
@@ -1123,76 +934,290 @@ public class MainApp {
                 "to the world with comfort and efficiency. With a focus on safety, innovation, and hospitality, " +
                 "we strive to give our passengers peace of mind and the confidence to travel with ease."
             );
-            case "CONTACT US" -> content.setText(
-                "✈️ Oppa Airlines - Contact Information\n\n" +
-                "📍 Office Location\n" +
-                "   Bangkal, Davao City, Philippines\n\n" +
-                "📞 Phone Numbers\n" +
-                "   Landline: (082) 234-5678\n" +
-                "   Mobile: 0917-987-6543\n\n" +
-                "✉️ Email Address\n" +
-                "   oppairlines.ph@gmail.com\n\n" +
-                "🕐 Office Hours\n" +
-                "   Monday - Friday: 8:30 AM - 6:00 PM\n" +
-                "   Saturday: 9:00 AM - 3:00 PM\n" +
-                "   Sunday: Closed\n\n" +
-                "📱 Social Media\n" +
-                "   Facebook: fb.com/OppaAirlinesPH\n" +
-                "   Instagram: @OppaAirlines"
-            );
-            case "PROMO" -> content.setText(
-                "🇨🇦 Canada - Up to 30% OFF on round-trip fares\n\n" +
-                "🇺🇸 USA - Save ₱5,000 on select flights\n\n" +
-                "🇸🇬 Singapore - Special fare starts at ₱6,999\n\n" +
-                "🇯🇵 Japan - Buy 1, Get 1 Half Off (limited seats only!)\n\n" +
-                "🇹🇭 Thailand - Round-trip fare as low as ₱8,499\n\n" +
-                "🇰🇷 Korea - FREE 20kg baggage allowance included\n\n" +
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-                "📅 Booking Period: September - December\n" +
-                "✈️ Travel Period: Until March next year\n" +
-                "📍 Visit us at Bangkal, Davao City\n" +
-                "📞 (082) 234-5678 | 📱 0917-987-6543\n" +
-                "✉️ oppairlines.ph@gmail.com\n" +
-                "📱 Follow us: fb.com/OppaAirlinesPH | @OppaAirlines\n" +
-                "✈️ Book early, travel happy - only with Oppa Airlines!"
-            );
-            case "NEED HELP?" -> content.setText(
+            contentPanel.add(textArea, BorderLayout.CENTER);
+            
+        } else if (title.equals("CONTACT US")) {
+            JPanel contactPanel = new JPanel();
+            contactPanel.setLayout(new BoxLayout(contactPanel, BoxLayout.Y_AXIS));
+            contactPanel.setBackground(new Color(210, 210, 210));
+            
+            JLabel contactTitle = new JLabel("Oppa Airlines - Contact Information");
+            contactTitle.setFont(new Font("Arial", Font.BOLD, 14));
+            contactTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+            contactPanel.add(contactTitle);
+            contactPanel.add(Box.createVerticalStrut(15));
+            
+            String[] contactInfo = {
+                "Office Location",
+                "     Bangkal, Davao City, Philippines",
+                "Phone Numbers",
+                "     Landline: (082) 234-5678",
+                "     Mobile: 0917-987-6543",
+                "Email Address",
+                "     oppairlines.ph@gmail.com",
+                "Office Hours",
+                "     Monday - Friday: 8:30 AM - 6:00 PM",
+                "     Saturday: 9:00 AM - 3:00 PM",
+                "     Sunday: Closed",
+                "Social Media",
+                "     Facebook: fb.com/OppaAirlinesPH",
+                "     Instagram: @OppaAirlines"
+            };
+            
+            for (String line : contactInfo) {
+                JLabel label = new JLabel(line);
+                label.setFont(new Font("Arial", Font.PLAIN, 13));
+                label.setAlignmentX(Component.LEFT_ALIGNMENT);
+                contactPanel.add(label);
+                contactPanel.add(Box.createVerticalStrut(5));
+            }
+            
+            contentPanel.add(contactPanel, BorderLayout.CENTER);
+            
+        } else if (title.equals("PROMO")) {
+            JPanel promoPanel = new JPanel(new GridLayout(1, 2, 20, 0));
+            promoPanel.setBackground(new Color(210, 210, 210));
+            
+            JPanel leftPromoPanel = new JPanel();
+            leftPromoPanel.setLayout(new BoxLayout(leftPromoPanel, BoxLayout.Y_AXIS));
+            leftPromoPanel.setBackground(new Color(210, 210, 210));
+            
+            String[] promos = {
+                "Canada - Up to 30% OFF on round-trip fares",
+                "USA - Save P5,000 on select flights",
+                "Singapore - Special fare starts at P6,999",
+                "Japan - Buy 1, Get 1 Half Off (limited seats only!)",
+                "Thailand - Round-trip fare as low as P8,499",
+                "Korea - FREE 20kg baggage allowance included"
+            };
+            
+            for (String promo : promos) {
+                JLabel promoLabel = new JLabel("• " + promo);
+                promoLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+                promoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                leftPromoPanel.add(promoLabel);
+                leftPromoPanel.add(Box.createVerticalStrut(12));
+            }
+            
+            JPanel rightPromoPanel = new JPanel();
+            rightPromoPanel.setLayout(new BoxLayout(rightPromoPanel, BoxLayout.Y_AXIS));
+            rightPromoPanel.setBackground(new Color(210, 210, 210));
+            
+            String[] bookingInfo = {
+                "Booking Period: September - December",
+                "Travel Period: Until March next year",
+                "Visit us at Bangkal, Davao City",
+                "(082) 234-5678 | 0917-987-6543",
+                "oppairlines.ph@gmail.com",
+                "Follow us: fb.com/OppaAirlinesPH | @OppaAirlines",
+                "Book early, travel happy - only with Oppa Airlines!"
+            };
+            
+            for (String info : bookingInfo) {
+                JLabel infoLabel = new JLabel("• " + info);
+                infoLabel.setFont(new Font("Arial", Font.PLAIN, 13));
+                infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                rightPromoPanel.add(infoLabel);
+                rightPromoPanel.add(Box.createVerticalStrut(8));
+            }
+            
+            promoPanel.add(leftPromoPanel);
+            promoPanel.add(rightPromoPanel);
+            contentPanel.add(promoPanel, BorderLayout.CENTER);
+            
+        } else if (title.equals("NEED HELP?")) {
+            JPanel helpPanel = new JPanel(new BorderLayout());
+            helpPanel.setBackground(new Color(210, 210, 210));
+
+            JTextArea helpText = new JTextArea();
+            helpText.setFont(new Font("Arial", Font.PLAIN, 13));
+            helpText.setBackground(new Color(210, 210, 210));
+            helpText.setForeground(Color.BLACK);
+            helpText.setEditable(false);
+            helpText.setWrapStyleWord(true);
+            helpText.setLineWrap(true);
+            helpText.setText(
                 "We're here to make your journey as smooth as possible. If you're experiencing issues with booking, " +
                 "payments, cancellations, or flight updates, check our quick guides and FAQs for instant solutions. " +
-                "Still stuck? Our support team is just a click or call away—ready to assist you 24/7.\n\n" +
-                "📞 Phone Numbers\n" +
-                "   Landline: (082) 234-5678\n" +
-                "   Mobile: 0917-987-6543\n\n" +
-                "✉️ Email Address\n" +
-                "   oppairlines.ph@gmail.com"
+                "Still stuck? Our support team is just a click or call away—ready to assist you 24/7."
             );
-            default -> content.setText("Write your " + title + " content here...");
+            helpText.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+            helpPanel.add(helpText, BorderLayout.NORTH);
+
+            JPanel contactPanel = new JPanel();
+            contactPanel.setLayout(new BoxLayout(contactPanel, BoxLayout.Y_AXIS));
+            contactPanel.setBackground(new Color(210, 210, 210));
+            contactPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+            String[] helpContact = {
+                "Phone Numbers",
+                "   Landline: (082) 234-5678",
+                "   Mobile: 0917-987-6543",
+                "Email Address",
+                "   oppairlines.ph@gmail.com"
+            };
+
+            for (String line : helpContact) {
+                JLabel label = new JLabel(line);
+                label.setFont(new Font("Arial", Font.PLAIN, 13));
+                label.setAlignmentX(Component.LEFT_ALIGNMENT);
+                contactPanel.add(label);
+                contactPanel.add(Box.createVerticalStrut(5));
+            }
+
+            helpPanel.add(contactPanel, BorderLayout.CENTER);
+            contentPanel.add(helpPanel, BorderLayout.CENTER);
         }
 
-        // ===== CONTENT WRAPPER =====
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBackground(new Color(230, 230, 230));
-        content.setBackground(new Color(230, 230, 230));
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
-        contentPanel.add(content, BorderLayout.CENTER);
+        contentWrapper.add(contentPanel, BorderLayout.CENTER);
+        mainPanel.add(contentWrapper, BorderLayout.CENTER);
 
-        panel.add(contentPanel, BorderLayout.CENTER);
-
-        // Back button
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 15));
+        bottomPanel.setBackground(Color.WHITE);
+        
         JButton backBtn = new JButton("BACK");
-        backBtn.setBackground(new Color(0, 153, 204));
+        backBtn.setBackground(new Color(0, 204, 255));
         backBtn.setForeground(Color.BLACK);
         backBtn.setFont(new Font("Arial", Font.BOLD, 12));
         backBtn.setPreferredSize(new Dimension(100, 35));
+        backBtn.setFocusPainted(false);
         backBtn.addActionListener(e -> staticFrame.dispose());
+        
+        bottomPanel.add(backBtn);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 20, 10));
-        bottom.setBackground(Color.WHITE);
-        bottom.add(backBtn);
-
-        panel.add(bottom, BorderLayout.SOUTH);
-
-        staticFrame.add(panel);
+        staticFrame.add(mainPanel);
         staticFrame.setVisible(true);
+    }
+
+    // Inner class for ViewFlightsFrame
+    static class ViewFlightsFrame extends JFrame {
+        private FlightManager flightManager;
+        private JTable bookingsTable;
+        private DefaultTableModel tableModel;
+        private JLabel infoLabel;
+        
+        public ViewFlightsFrame(FlightManager flightManager) {
+            this.flightManager = flightManager;
+            
+            setTitle("View Booked Flights - OPPA Airlines");
+            setSize(1000, 600);
+            setLocationRelativeTo(null);
+            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            
+            initComponents();
+            loadBookings();
+        }
+        
+        private void initComponents() {
+            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+            mainPanel.setBackground(Color.WHITE);
+            mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+            
+            JPanel titlePanel = new JPanel();
+            titlePanel.setBackground(new Color(0, 191, 255));
+            JLabel titleLabel = new JLabel("BOOKED FLIGHTS");
+            titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
+            titleLabel.setForeground(Color.BLACK);
+            titlePanel.add(titleLabel);
+            titlePanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
+            
+            String[] columnNames = {"Booking ID", "Passenger Name", "Email", "Destination", "Class", "Seat Number"};
+            tableModel = new DefaultTableModel(columnNames, 0) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            };
+            
+            bookingsTable = new JTable(tableModel);
+            bookingsTable.setFont(new Font("Arial", Font.PLAIN, 14));
+            bookingsTable.setRowHeight(30);
+            bookingsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+            bookingsTable.getTableHeader().setBackground(new Color(100, 149, 237));
+            bookingsTable.getTableHeader().setForeground(Color.WHITE);
+            bookingsTable.setSelectionBackground(new Color(173, 216, 230));
+            
+            JScrollPane scrollPane = new JScrollPane(bookingsTable);
+            scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0, 191, 255), 2));
+            
+            JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+            bottomPanel.setBackground(Color.WHITE);
+            
+            JButton refreshButton = createStyledButton("REFRESH", new Color(34, 139, 34));
+            JButton closeButton = createStyledButton("CLOSE", new Color(220, 20, 60));
+            
+            refreshButton.addActionListener(e -> loadBookings());
+            closeButton.addActionListener(e -> dispose());
+            
+            bottomPanel.add(refreshButton);
+            bottomPanel.add(closeButton);
+            
+            JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            infoPanel.setBackground(Color.WHITE);
+            infoLabel = new JLabel("Total Bookings: 0");
+            infoLabel.setFont(new Font("Arial", Font.BOLD, 16));
+            infoPanel.add(infoLabel);
+            
+            mainPanel.add(titlePanel, BorderLayout.NORTH);
+            mainPanel.add(scrollPane, BorderLayout.CENTER);
+            
+            JPanel bottomContainer = new JPanel(new BorderLayout());
+            bottomContainer.setBackground(Color.WHITE);
+            bottomContainer.add(infoPanel, BorderLayout.NORTH);
+            bottomContainer.add(bottomPanel, BorderLayout.CENTER);
+            mainPanel.add(bottomContainer, BorderLayout.SOUTH);
+            
+            add(mainPanel);
+        }
+        
+        private JButton createStyledButton(String text, Color bgColor) {
+            JButton button = new JButton(text);
+            button.setFont(new Font("Arial", Font.BOLD, 16));
+            button.setBackground(bgColor);
+            button.setForeground(Color.WHITE);
+            button.setFocusPainted(false);
+            button.setBorderPainted(false);
+            button.setPreferredSize(new Dimension(150, 45));
+            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+            
+            button.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseEntered(java.awt.event.MouseEvent evt) {
+                    button.setBackground(bgColor.darker());
+                }
+                public void mouseExited(java.awt.event.MouseEvent evt) {
+                    button.setBackground(bgColor);
+                }
+            });
+            
+            return button;
+        }
+        
+        private void loadBookings() {
+            tableModel.setRowCount(0);
+            
+            List<Booking> bookings = flightManager.getAllBookings();
+            
+            for (Booking booking : bookings) {
+                Object[] row = {
+                    booking.getBookingId(),
+                    booking.getPassenger().getName(),
+                    booking.getPassenger().getEmail(),
+                    booking.getDestination(),
+                    booking.getSeatClass(),
+                    booking.getSeatNumber()
+                };
+                tableModel.addRow(row);
+            }
+            
+            infoLabel.setText("Total Bookings: " + bookings.size());
+            
+            if (bookings.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No bookings found.", 
+                    "Information", 
+                    JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
     }
 }

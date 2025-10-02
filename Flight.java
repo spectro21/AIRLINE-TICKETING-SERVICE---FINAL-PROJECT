@@ -13,9 +13,11 @@ private final Set<Integer> bookedEconomy = new HashSet<>();
 private final Set<Integer> bookedBusiness = new HashSet<>();
 
 
-// separate waitlists for each class (FIFO by timestamp)
-private final PriorityQueue<WaitlistEntry> waitlistEconomy = new PriorityQueue<>();
-private final PriorityQueue<WaitlistEntry> waitlistBusiness = new PriorityQueue<>();
+/* separate waitlists for each class (FIFO by timestamp) 
+ 			Priority Queue*/
+private final FlightPriorityQueue<WaitlistEntry> waitlistEconomy = new FlightPriorityQueue<>();
+private final FlightPriorityQueue<WaitlistEntry> waitlistBusiness = new FlightPriorityQueue<>();
+
 
 
 public Flight(String destination) {
