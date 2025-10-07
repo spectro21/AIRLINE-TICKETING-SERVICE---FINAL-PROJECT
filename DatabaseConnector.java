@@ -1,12 +1,13 @@
 package AIRLINE_TICKETING;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.*;
 
-//Placeholder for DB integration. Hook into saveBooking / deleteBooking / loadBookings when you add a real DB.
-public class DatabaseConnector throws FileNotFoundException{
-	
-	
-	Class.forName("com.mysql.cj.connect_db.Driver");
-   Connection con = DriverManager.getConnection("connect_db:mysql/localhost:3306/unisoft", "root", "root");
+public class DatabaseConnector {
+    private static final String URL = "jdbc:mysql://localhost:3306/Airplane_Reservation_DB2";
+    private static final String USER = "root";
+    private static final String PASS = "";
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASS);
+    }
 }

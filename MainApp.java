@@ -1,32 +1,68 @@
+
 package AIRLINE_TICKETING;
 
 import javax.swing.*;
+import java.sql.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
 
 public class MainApp {
     private static final FlightManager manager = new FlightManager();
     private static JFrame mainFrame;
+    
+    private static final String dbURL = "jdbc:mysql://localhost:3306/Airplane_Reservation_DB2";
+    private static final String dbUsername = "root";
+    private static final String dbPass = "";
+    
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = "admin123";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InstantiationException, IllegalAccessException, ClassNotFoundException, SQLException {
+        Connection conn = null;
+        conn = DriverManager.getConnection(dbURL, dbUsername, dbPass);
         SwingUtilities.invokeLater(MainApp::showMainMenu);
     }
 
+    // ==================== UTILITY METHODS ====================
     private static String normalizeUidToEmail(String uid) {
         if (uid == null) return null;
         uid = uid.trim();
         if (uid.isEmpty()) return uid;
-        return uid.contains("@") ? uid : (uid + "@example.com");
+        return uid.contains("@") ? uid : (uid + "@gmail.com");
     }
     
     private static final Color BRAND_COLOR = new Color(0, 151, 178);
-    private static final Color BOX_GRAY    = new Color(230, 230, 230);
+    private static final Color BOX_GRAY = new Color(230, 230, 230);
     
+    private static JPanel createBackgroundPanel(String imagePath) {
+        return new JPanel() {
+            private Image backgroundImage;
+            
+            {
+                try {
+                    backgroundImage = ImageIO.read(new File(imagePath));
+                } catch (IOException e) {
+                    System.err.println("Could not load background image: " + e.getMessage());
+                }
+            }
+            
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (backgroundImage != null) {
+                    g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+                }
+            }
+        };
+    }
+
+    // ==================== MAIN MENU FRAME START ====================
     private static void showMainMenu() {
         mainFrame = new JFrame("✈️ Oppa Flight Airline Ticketing System");
         mainFrame.setSize(1100, 680);
@@ -64,25 +100,29 @@ public class MainApp {
             navPanel.add(navBtn);
         }
 
+        // Main Panel with Background
+        JPanel mainPanel = createBackgroundPanel("C:\\Users\\spectro\\Downloads\\airline.jpg");
+        mainPanel.setLayout(new BorderLayout());
+        
         JLabel welcomeLabel = new JLabel("WELCOME TO OPPA AIRLINES", SwingConstants.CENTER);
         welcomeLabel.setFont(new Font("Serif", Font.ITALIC, 34));
         welcomeLabel.setBorder(BorderFactory.createEmptyBorder(20, 0, 20, 0));
-
-        JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBackground(Color.WHITE);
+        welcomeLabel.setOpaque(false);
+        mainPanel.add(welcomeLabel, BorderLayout.NORTH);
+        
+        JPanel buttonPanel = new JPanel(new GridBagLayout());
+        buttonPanel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(25, 40, 25, 40);
 
         JButton bookBtn = makeMainButton("BOOK A FLIGHT");
         JButton cancelBtn = makeMainButton("CANCEL BOOKING");
         JButton rebookBtn = makeMainButton("REBOOK FLIGHT");
-        JButton viewBtn = makeMainButton("VIEW FLIGHTS");
         JButton exitBtn = makeMainButton("EXIT");
 
         bookBtn.addActionListener(e -> showBookFlightForm());
         cancelBtn.addActionListener(e -> showCancelForm());
         rebookBtn.addActionListener(e -> showRebookForm());
-        viewBtn.addActionListener(e -> handleView(manager));
         exitBtn.addActionListener(e -> {
             JOptionPane.showMessageDialog(mainFrame, "Goodbye!");
             System.exit(0);
@@ -90,28 +130,39 @@ public class MainApp {
 
         gbc.gridx = 0;
         gbc.gridy = 0;
-        mainPanel.add(bookBtn, gbc);
+        buttonPanel.add(bookBtn, gbc);
 
         gbc.gridx = 1;
-        mainPanel.add(cancelBtn, gbc);
+        buttonPanel.add(cancelBtn, gbc);
 
         gbc.gridx = 0;
         gbc.gridy = 1;
-        mainPanel.add(rebookBtn, gbc);
+        buttonPanel.add(rebookBtn, gbc);
 
         gbc.gridx = 1;
-        mainPanel.add(viewBtn, gbc);
+        buttonPanel.add(exitBtn, gbc);
+        
+        mainPanel.add(buttonPanel, BorderLayout.CENTER);
 
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        mainPanel.add(exitBtn, gbc);
+        // Admin Button
+        JButton adminBtn = new JButton("Admin Login");
+        adminBtn.setFont(new Font("Arial", Font.BOLD, 10));
+        adminBtn.setBackground(new Color(0, 153, 204));
+        adminBtn.setForeground(Color.BLACK);
+        adminBtn.setFocusPainted(false);
+        adminBtn.setPreferredSize(new Dimension(100, 30));
+        adminBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        adminBtn.addActionListener(e -> showAdminLogin());
+        
+        JPanel adminPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        adminPanel.setOpaque(false);
+        adminPanel.add(adminBtn);
+        mainPanel.add(adminPanel, BorderLayout.SOUTH);
 
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(Color.WHITE);
         centerPanel.add(navPanel, BorderLayout.NORTH);
-        centerPanel.add(welcomeLabel, BorderLayout.CENTER);
-        centerPanel.add(mainPanel, BorderLayout.SOUTH);
+        centerPanel.add(mainPanel, BorderLayout.CENTER);
 
         mainFrame.add(headerPanel, BorderLayout.NORTH);
         mainFrame.add(centerPanel, BorderLayout.CENTER);
@@ -120,6 +171,514 @@ public class MainApp {
         mainFrame.setVisible(true);
     }
 
+    // ==================== ADMIN LOGIN ====================
+    private static void showAdminLogin() {
+        JDialog loginDialog = new JDialog(mainFrame, "Admin Login", true);
+        loginDialog.setSize(500, 400);
+        loginDialog.setLayout(new BorderLayout());
+        loginDialog.setLocationRelativeTo(mainFrame);
+
+        // Header Panel
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(new Color(0, 153, 204));
+        headerPanel.setPreferredSize(new Dimension(500, 80));
+        JLabel headerLabel = new JLabel(" ADMIN LOGIN");
+        headerLabel.setFont(new Font("Arial Black", Font.BOLD, 28));
+        headerLabel.setForeground(Color.WHITE);
+        headerPanel.add(headerLabel);
+        loginDialog.add(headerPanel, BorderLayout.NORTH);
+
+        JPanel loginPanel = new JPanel(new GridBagLayout());
+        loginPanel.setBackground(Color.WHITE);
+        loginPanel.setBorder(BorderFactory.createEmptyBorder(30, 40, 30, 40));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(15, 15, 15, 15);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JLabel userLabel = new JLabel("Username:");
+        userLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        userLabel.setForeground(new Color(0, 153, 204));
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        loginPanel.add(userLabel, gbc);
+
+        JTextField userField = new JTextField();
+        userField.setFont(new Font("Arial", Font.PLAIN, 16));
+        userField.setPreferredSize(new Dimension(300, 40));
+        userField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0, 153, 204), 2),
+            BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        ));
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(5, 15, 15, 15);
+        loginPanel.add(userField, gbc);
+
+        JLabel passLabel = new JLabel("Password:");
+        passLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        passLabel.setForeground(new Color(0, 153, 204));
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 1;
+        gbc.insets = new Insets(15, 15, 15, 15);
+        loginPanel.add(passLabel, gbc);
+
+        JPasswordField passField = new JPasswordField();
+        passField.setFont(new Font("Arial", Font.PLAIN, 16));
+        passField.setPreferredSize(new Dimension(300, 40));
+        passField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(0, 153, 204), 2),
+            BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        ));
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.insets = new Insets(5, 15, 30, 15);
+        loginPanel.add(passField, gbc);
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 20));
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton loginBtn = new JButton("LOGIN");
+        loginBtn.setBackground(new Color(34, 139, 34));
+        loginBtn.setForeground(Color.WHITE);
+        loginBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        loginBtn.setPreferredSize(new Dimension(130, 45));
+        loginBtn.setFocusPainted(false);
+        loginBtn.setBorderPainted(false);
+        loginBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JButton cancelBtn = new JButton("CANCEL");
+        cancelBtn.setBackground(new Color(220, 20, 60));
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFont(new Font("Arial", Font.BOLD, 14));
+        cancelBtn.setPreferredSize(new Dimension(130, 45));
+        cancelBtn.setFocusPainted(false);
+        cancelBtn.setBorderPainted(false);
+        cancelBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Hover effects
+        loginBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(new Color(34, 139, 34).darker());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                loginBtn.setBackground(new Color(34, 139, 34));
+            }
+        });
+
+        cancelBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                cancelBtn.setBackground(new Color(220, 20, 60).darker());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                cancelBtn.setBackground(new Color(220, 20, 60));
+            }
+        });
+
+        loginBtn.addActionListener(e -> {
+            String username = userField.getText();
+            String password = new String(passField.getPassword());
+
+            if (username.equals(ADMIN_USERNAME) && password.equals(ADMIN_PASSWORD)) {
+                loginDialog.dispose();
+                showAdminDashboard();
+            } else {
+                JOptionPane.showMessageDialog(loginDialog, "Invalid credentials!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        cancelBtn.addActionListener(e -> loginDialog.dispose());
+
+        buttonPanel.add(loginBtn);
+        buttonPanel.add(cancelBtn);
+
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        loginPanel.add(buttonPanel, gbc);
+
+        loginDialog.add(loginPanel, BorderLayout.CENTER);
+        loginDialog.setResizable(false);
+        loginDialog.setVisible(true);
+    }
+
+    // ==================== ADMIN DASHBOARD ====================
+    private static void showAdminDashboard() {
+        JFrame adminFrame = new JFrame("Admin Dashboard - OPPA Airlines");
+        adminFrame.setSize(1200, 700);
+        adminFrame.setLocationRelativeTo(mainFrame);
+        adminFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
+
+        JPanel headerPanel = new JPanel();
+        headerPanel.setBackground(new Color(0, 204, 255));
+        JLabel headerLabel = new JLabel("ADMIN DASHBOARD");
+        headerLabel.setFont(new Font("Arial Black", Font.BOLD, 28));
+        headerLabel.setForeground(Color.BLACK);
+        headerPanel.add(headerLabel);
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
+
+        JTabbedPane tabbedPane = new JTabbedPane();
+        tabbedPane.setFont(new Font("Arial", Font.BOLD, 14));
+
+        tabbedPane.addTab("Booked Flights", createBookedFlightsPanel());
+        tabbedPane.addTab("Waitlist", createWaitlistPanel());
+
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+
+        adminFrame.add(mainPanel);
+        adminFrame.setVisible(true);
+    }
+
+ // ==================== BOOKED FLIGHTS PANEL ====================
+    private static JPanel createBookedFlightsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        String[] columnNames = {"Booking ID", "Passenger Name", "Email", "Destination", "Class", "Seat"};
+        DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        JTable table = new JTable(tableModel);
+        table.setFont(new Font("Arial", Font.PLAIN, 14));
+        table.setRowHeight(30);
+        table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        table.getTableHeader().setBackground(new Color(100, 149, 237));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.setSelectionBackground(new Color(173, 216, 230));
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0, 191, 255), 2));
+
+        // Load bookings
+        List<Booking> bookings = manager.getAllBookings();
+        for (Booking booking : bookings) {
+            Object[] row = {
+                booking.getBookingId(),
+                booking.getPassenger().getName(),
+                booking.getPassenger().getEmail(),
+                booking.getDestination(),
+                booking.getSeatClass(),
+                booking.getSeatNumber()
+            };
+            tableModel.addRow(row);
+        }
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton approveBtn = createAdminButton("APPROVE", new Color(34, 139, 34));
+        JButton declineBtn = createAdminButton("DECLINE", new Color(220, 20, 60));
+        JButton refreshBtn = createAdminButton("REFRESH", new Color(0, 153, 204));
+        JButton deleteBtn = createAdminButton("DELETE", new Color(255, 140, 0));
+        JButton logoutBtn = createAdminButton("LOGOUT", new Color(128, 128, 128));
+
+   
+
+
+        // (your newly added approve/decline listeners remain as-is)
+        approveBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String bookingId = (String) tableModel.getValueAt(row, 0);
+                JOptionPane.showMessageDialog(panel, "Booking " + bookingId + " approved!", "Approved", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select a booking first!");
+            }
+        });
+
+        declineBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String bookingId = (String) tableModel.getValueAt(row, 0);
+                int confirm = JOptionPane.showConfirmDialog(panel, 
+                    "Decline booking " + bookingId + "?", 
+                    "Confirm Decline", 
+                    JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    JOptionPane.showMessageDialog(panel, "Booking " + bookingId + " declined!", "Declined", JOptionPane.WARNING_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select a booking first!");
+            }
+        });
+
+        refreshBtn.addActionListener(e -> {
+            tableModel.setRowCount(0);
+            List<Booking> refreshedBookings = manager.getAllBookings();
+            for (Booking booking : refreshedBookings) {
+                Object[] row = {
+                    booking.getBookingId(),
+                    booking.getPassenger().getName(),
+                    booking.getPassenger().getEmail(),
+                    booking.getDestination(),
+                    booking.getSeatClass(),
+                    booking.getSeatNumber()
+                };
+                tableModel.addRow(row);
+            }
+        });
+
+        deleteBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String bookingId = (String) tableModel.getValueAt(row, 0);
+                int confirm = JOptionPane.showConfirmDialog(panel, 
+                    "Delete booking " + bookingId + "? This cannot be undone.", 
+                    "Confirm Delete", 
+                    JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    manager.cancelBooking(bookingId);
+                    tableModel.removeRow(row);
+                    JOptionPane.showMessageDialog(panel, "Booking deleted!");
+                }
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select a booking first!");
+            }
+        });
+
+        buttonPanel.add(approveBtn);
+        buttonPanel.add(declineBtn);
+        buttonPanel.add(refreshBtn);
+        buttonPanel.add(deleteBtn);
+        buttonPanel.add(logoutBtn);
+
+        logoutBtn.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(panel, 
+                "Are you sure you want to logout?", 
+                "Confirm Logout", 
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                Window window = SwingUtilities.getWindowAncestor(panel);
+                if (window != null) {
+                    window.dispose();
+                }
+            }
+        });
+
+        JLabel countLabel = new JLabel("Total Bookings: " + bookings.size());
+        countLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        infoPanel.setBackground(Color.WHITE);
+        infoPanel.add(countLabel);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.add(infoPanel, BorderLayout.NORTH);
+        bottomPanel.add(buttonPanel, BorderLayout.CENTER);
+
+        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    // ==================== WAITLIST PANEL ====================
+    private static JPanel createWaitlistPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(Color.WHITE);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        String[] columnNames = {"Passenger Name", "Email", "Destination", "Class", "Request Time"};
+        DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        JTable table = new JTable(tableModel);
+        table.setFont(new Font("Arial", Font.PLAIN, 14));
+        table.setRowHeight(30);
+        table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        table.getTableHeader().setBackground(new Color(100, 149, 237));
+        table.getTableHeader().setForeground(Color.WHITE);
+        table.setSelectionBackground(new Color(173, 216, 230));
+
+        JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0, 191, 255), 2));
+
+        // Load waitlist from database
+        try (Connection conn = DatabaseConnector.getConnection()) {
+            String sql = "SELECT p.name, p.email, w.destination, w.seat_class, w.request_time " +
+                        "FROM Waitlist w JOIN Passengers p ON w.passenger_id = p.passenger_id " +
+                        "ORDER BY w.request_time";
+            try (PreparedStatement stmt = conn.prepareStatement(sql);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Object[] row = {
+                        rs.getString("name"),
+                        rs.getString("email"),
+                        rs.getString("destination"),
+                        rs.getString("seat_class"),
+                        rs.getTimestamp("request_time")
+                    };
+                    tableModel.addRow(row);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        buttonPanel.setBackground(Color.WHITE);
+
+        JButton approveBtn = createAdminButton("APPROVE", new Color(34, 139, 34));
+        JButton declineBtn = createAdminButton("DECLINE", new Color(220, 20, 60));
+        JButton refreshBtn = createAdminButton("REFRESH", new Color(0, 153, 204));
+        JButton deleteBtn = createAdminButton("DELETE", new Color(255, 140, 0));
+        JButton logoutBtn = createAdminButton("LOGOUT", new Color(128, 128, 128));
+
+        approveBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String name = (String) tableModel.getValueAt(row, 0);
+                table.setSelectionBackground(new Color(144, 238, 144)); // Light green
+                JOptionPane.showMessageDialog(panel, "Waitlist entry for " + name + " approved!", "Approved", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an entry first!");
+            }
+        });
+
+        declineBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String name = (String) tableModel.getValueAt(row, 0);
+                int confirm = JOptionPane.showConfirmDialog(panel, 
+                    "Decline waitlist entry for " + name + "?", 
+                    "Confirm Decline", 
+                    JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    table.setSelectionBackground(new Color(255, 99, 71)); // Red
+                    JOptionPane.showMessageDialog(panel, "Waitlist entry declined!", "Declined", JOptionPane.WARNING_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an entry first!");
+            }
+        });
+
+        refreshBtn.addActionListener(e -> {
+            tableModel.setRowCount(0);
+            try (Connection conn = DatabaseConnector.getConnection()) {
+                String sql = "SELECT p.name, p.email, w.destination, w.seat_class, w.request_time " +
+                            "FROM Waitlist w JOIN Passengers p ON w.passenger_id = p.passenger_id " +
+                            "ORDER BY w.request_time";
+                try (PreparedStatement stmt = conn.prepareStatement(sql);
+                     ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        Object[] row = {
+                            rs.getString("name"),
+                            rs.getString("email"),
+                            rs.getString("destination"),
+                            rs.getString("seat_class"),
+                            rs.getTimestamp("request_time")
+                        };
+                        tableModel.addRow(row);
+                    }
+                }
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        deleteBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row >= 0) {
+                String name = (String) tableModel.getValueAt(row, 0);
+                String email = (String) tableModel.getValueAt(row, 1);
+                int confirm = JOptionPane.showConfirmDialog(panel, 
+                    "Delete waitlist entry for " + name + "? This cannot be undone.", 
+                    "Confirm Delete", 
+                    JOptionPane.YES_NO_OPTION);
+                if (confirm == JOptionPane.YES_OPTION) {
+                    try (Connection conn = DatabaseConnector.getConnection()) {
+                        String sql = "DELETE FROM Waitlist WHERE passenger_id = (SELECT passenger_id FROM Passengers WHERE email = ?)";
+                        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                            stmt.setString(1, email);
+                            stmt.executeUpdate();
+                        }
+                        tableModel.removeRow(row);
+                        JOptionPane.showMessageDialog(panel, "Waitlist entry deleted!");
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            } else {
+                JOptionPane.showMessageDialog(panel, "Please select an entry first!");
+            }
+        });
+
+        buttonPanel.add(approveBtn);
+        buttonPanel.add(declineBtn);
+        buttonPanel.add(refreshBtn);
+        buttonPanel.add(deleteBtn);
+        buttonPanel.add(logoutBtn);
+
+        logoutBtn.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(panel, 
+                "Are you sure you want to logout?", 
+                "Confirm Logout", 
+                JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                Window window = SwingUtilities.getWindowAncestor(panel);
+                if (window != null) {
+                    window.dispose();
+                }
+            }
+        });
+        
+        JLabel countLabel = new JLabel("Total Waitlist Entries: " + tableModel.getRowCount());
+        countLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        infoPanel.setBackground(Color.WHITE);
+        infoPanel.add(countLabel);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.add(infoPanel, BorderLayout.NORTH);
+        bottomPanel.add(buttonPanel, BorderLayout.CENTER);
+
+        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+
+        return panel;
+    }
+
+    private static JButton createAdminButton(String text, Color bgColor) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("Arial", Font.BOLD, 14));
+        button.setBackground(bgColor);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setBorderPainted(false);
+        button.setPreferredSize(new Dimension(120, 40));
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor.darker());
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(bgColor);
+            }
+        });
+        
+        return button;
+    }
+
+    // ==================== BOOK FLIGHT PAGE ====================
     private static void showBookFlightForm() {
         JDialog dlg = new JDialog(mainFrame, "Book a Flight", true);
         dlg.setSize(1000, 520);
@@ -170,12 +729,12 @@ public class MainApp {
         leftCol.add(nameField);
         leftCol.add(Box.createVerticalStrut(20));
 
-        JLabel uidLabel = makeTealLabel("Unique ID");
+        JLabel uidLabel = makeTealLabel("Email Address");
         uidLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         leftCol.add(uidLabel);
         leftCol.add(Box.createVerticalStrut(8));
 
-        String uidPlaceholder = "Ex. 1111";
+        String uidPlaceholder = "Ex. j.nabunturan.1111@gmail.com";
         JTextField uidField = new JTextField(uidPlaceholder);
         uidField.setFont(new Font("Arial", Font.PLAIN, 16));
         uidField.setBackground(new Color(230, 230, 230));
@@ -414,19 +973,7 @@ public class MainApp {
         return btn;
     }
 
-    private static JButton makeButton(String text, Color bgColor) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(bgColor);
-        btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(Color.DARK_GRAY, 2),
-                BorderFactory.createEmptyBorder(10, 15, 10, 15)
-        ));
-        return btn;
-    }
-
+    // ==================== CANCEL BOOKING FORM ====================
     private static void showCancelForm() {
         JDialog dlg = new JDialog(mainFrame, "Cancel Booking", true);
         dlg.setSize(980, 420);
@@ -465,8 +1012,8 @@ public class MainApp {
         leftCol.add(nameField);
         leftCol.add(Box.createVerticalStrut(18));
 
-        JLabel idLabel = makeTealLabel("Unique ID");
-        JTextField idField = new JTextField("Ex. 1111");
+        JLabel idLabel = makeTealLabel("Email Address");
+        JTextField idField = new JTextField("Ex. j.nabunturan.1111@gmail.com");
         styleInputField(idField);
 
         leftCol.add(idLabel);
@@ -521,7 +1068,7 @@ public class MainApp {
             String name = nameField.getText().trim();
             String reason = (String) reasonCombo.getSelectedItem();
             if (uid.isEmpty() || uid.startsWith("Ex.")) {
-                JOptionPane.showMessageDialog(dlg, "Please enter the Unique ID.");
+                JOptionPane.showMessageDialog(dlg, "Please enter the Email Address.");
                 return;
             }
 
@@ -554,7 +1101,7 @@ public class MainApp {
 
             if (!ok) {
                 JOptionPane.showMessageDialog(dlg,
-                        "Cancellation didn't run. Please replace the TODO area with your manager cancellation call (see commented examples).");
+                        "Cancellation failed.");
             } else {
                 JOptionPane.showMessageDialog(dlg, "Booking canceled successfully!");
                 dlg.dispose();
@@ -590,14 +1137,7 @@ public class MainApp {
         });
     }
 
-    private static void styleActionButton(JButton btn) {
-        btn.setBackground(new Color(0, 133, 140));
-        btn.setForeground(Color.BLACK);
-        btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createEmptyBorder(8, 14, 8, 14));
-        btn.setPreferredSize(new Dimension(120, 36));
-    }
-
+    // ==================== REBOOK FLIGHT FORM ====================
     private static void showRebookForm() {
         JDialog dlg = new JDialog(mainFrame, "Rebook Booking", true);
         dlg.setSize(980, 420);
@@ -636,8 +1176,8 @@ public class MainApp {
         leftCol.add(nameField);
         leftCol.add(Box.createVerticalStrut(18));
 
-        JLabel idLabel = makeTealLabel("Unique ID");
-        JTextField idField = new JTextField("Ex. 1111");
+        JLabel idLabel = makeTealLabel("Email Address");
+        JTextField idField = new JTextField("Ex. j.nabunturan.1111@gmail.com");
         styleInputField(idField);
 
         leftCol.add(idLabel);
@@ -693,7 +1233,7 @@ public class MainApp {
             String option = (String) optionCombo.getSelectedItem();
 
             if (uid.isEmpty() || uid.startsWith("Ex.")) {
-                JOptionPane.showMessageDialog(dlg, "Please enter the Unique ID.");
+                JOptionPane.showMessageDialog(dlg, "Please enter the Email Address.");
                 return;
             }
 
@@ -736,148 +1276,7 @@ public class MainApp {
         dlg.setVisible(true);
     }
 
-    private static void showRebookBookingOptions(String name, String uid) {
-        JDialog dlg = new JDialog(mainFrame, "Rebook Options", true);
-        dlg.setSize(1000, 520);
-        dlg.setLayout(new BorderLayout());
-        dlg.setLocationRelativeTo(mainFrame);
-
-        JPanel outer = new JPanel(new BorderLayout());
-        outer.setBackground(new Color(0, 204, 255));
-        outer.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-
-        JPanel formPanel = new JPanel(new GridBagLayout());
-        formPanel.setBackground(Color.WHITE);
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(18, 18, 6, 18);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        JPanel leftCol = new JPanel();
-        leftCol.setLayout(new BoxLayout(leftCol, BoxLayout.Y_AXIS));
-        leftCol.setBackground(Color.WHITE);
-
-        JLabel nameLabel = makeTealLabel("Name");
-        leftCol.add(nameLabel);
-        leftCol.add(Box.createVerticalStrut(8));
-
-        JTextField nameField = new JTextField(name);
-        styleInputField(nameField);
-        leftCol.add(nameField);
-        leftCol.add(Box.createVerticalStrut(20));
-
-        JLabel uidLabel = makeTealLabel("Unique ID");
-        leftCol.add(uidLabel);
-        leftCol.add(Box.createVerticalStrut(8));
-
-        JTextField uidField = new JTextField(uid);
-        styleInputField(uidField);
-        leftCol.add(uidField);
-        leftCol.add(Box.createVerticalStrut(28));
-
-        JButton chooseSeatSmall = new JButton("CHOOSE SEAT");
-        chooseSeatSmall.setBackground(new Color(0x00, 0x97, 0xB2));
-        chooseSeatSmall.setFocusPainted(false);
-        chooseSeatSmall.setMaximumSize(new Dimension(220, 40));
-        leftCol.add(chooseSeatSmall);
-        leftCol.add(Box.createVerticalStrut(12));
-
-        JButton pickSeatBtn = new JButton("PICK A SEAT");
-        pickSeatBtn.setBackground(new Color(220, 220, 220));
-        pickSeatBtn.setFocusPainted(false);
-        pickSeatBtn.setPreferredSize(new Dimension(420, 48));
-        leftCol.add(pickSeatBtn);
-
-        JPanel rightCol = new JPanel();
-        rightCol.setLayout(new BoxLayout(rightCol, BoxLayout.Y_AXIS));
-        rightCol.setBackground(Color.WHITE);
-
-        JLabel destLabel = makeTealLabel("Destination");
-        rightCol.add(destLabel);
-        rightCol.add(Box.createVerticalStrut(8));
-
-        Object[] dests = manager.getDestinations().toArray();
-        JComboBox<Object> destCombo = new JComboBox<>(dests);
-        destCombo.setBackground(new Color(230, 230, 230));
-        destCombo.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
-        destCombo.setPreferredSize(new Dimension(420, 40));
-        destCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        rightCol.add(destCombo);
-        rightCol.add(Box.createVerticalStrut(20));
-
-        JLabel seatClassLabel = makeTealLabel("Seat Class");
-        rightCol.add(seatClassLabel);
-        rightCol.add(Box.createVerticalStrut(8));
-
-        String[] seatOptions = {"Economy", "Business"};
-        JComboBox<String> seatCombo = new JComboBox<>(seatOptions);
-        seatCombo.setBackground(new Color(230, 230, 230));
-        seatCombo.setBorder(BorderFactory.createEmptyBorder(12, 10, 12, 10));
-        seatCombo.setPreferredSize(new Dimension(420, 40));
-        seatCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        rightCol.add(seatCombo);
-        rightCol.add(Box.createVerticalStrut(28));
-
-        JButton autoAssignBtn = new JButton("AUTO ASSIGN");
-        autoAssignBtn.setBackground(new Color(220, 220, 220));
-        autoAssignBtn.setFocusPainted(false);
-        autoAssignBtn.setPreferredSize(new Dimension(420, 48));
-        rightCol.add(autoAssignBtn);
-
-        gbc.gridx = 0; gbc.gridy = 0;
-        gbc.weightx = 0.5;
-        formPanel.add(leftCol, gbc);
-        gbc.gridx = 1;
-        formPanel.add(rightCol, gbc);
-
-        outer.add(formPanel, BorderLayout.CENTER);
-
-        JPanel bottomRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        bottomRow.setBackground(Color.WHITE);
-
-        JButton backBtn = new JButton("BACK");
-        backBtn.setBackground(new Color(0, 153, 204));
-        backBtn.setPreferredSize(new Dimension(100, 35));
-        backBtn.addActionListener(ev -> dlg.dispose());
-
-        JButton confirmBtn = new JButton("CONFIRM");
-        confirmBtn.setBackground(new Color(0, 153, 204));
-        confirmBtn.setPreferredSize(new Dimension(100, 35));
-        confirmBtn.addActionListener(ev -> {
-            String pname = nameField.getText().trim();
-            String puid = uidField.getText().trim();
-            String destination = (String) destCombo.getSelectedItem();
-            String seatClass = (String) seatCombo.getSelectedItem();
-
-            Passenger p = new Passenger(pname, puid + "@example.com");
-            Booking bk = manager.reserveAutoAssign(p, destination, seatClass);
-
-            if (bk != null) {
-                JOptionPane.showMessageDialog(dlg,
-                        "Rebooked successfully!\nSeat: " + bk.getSeatNumber(),
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
-                dlg.dispose();
-            } else {
-                JOptionPane.showMessageDialog(dlg,
-                        "Class full, added to waitlist.",
-                        "Waitlist", JOptionPane.WARNING_MESSAGE);
-            }
-        });
-
-        bottomRow.add(backBtn);
-        bottomRow.add(confirmBtn);
-
-        outer.add(bottomRow, BorderLayout.SOUTH);
-
-        dlg.add(outer);
-        dlg.setResizable(false);
-        dlg.setVisible(true);
-    }
-
-    private static void handleView(FlightManager flightManager) {
-        ViewFlightsFrame viewFrame = new ViewFlightsFrame(flightManager);
-        viewFrame.setVisible(true);
-    }
-
+    // ==================== STATIC PAGES ====================
     private static void showStaticPage(String title) {
         JFrame staticFrame = new JFrame(title);
         staticFrame.setSize(1100, 680);
@@ -1007,9 +1406,6 @@ public class MainApp {
                 "Booking Period: September - December",
                 "Travel Period: Until March next year",
                 "Visit us at Bangkal, Davao City",
-                "(082) 234-5678 | 0917-987-6543",
-                "oppairlines.ph@gmail.com",
-                "Follow us: fb.com/OppaAirlinesPH | @OppaAirlines",
                 "Book early, travel happy - only with Oppa Airlines!"
             };
             
@@ -1088,136 +1484,5 @@ public class MainApp {
 
         staticFrame.add(mainPanel);
         staticFrame.setVisible(true);
-    }
-
-    // Inner class for ViewFlightsFrame
-    static class ViewFlightsFrame extends JFrame {
-        private FlightManager flightManager;
-        private JTable bookingsTable;
-        private DefaultTableModel tableModel;
-        private JLabel infoLabel;
-        
-        public ViewFlightsFrame(FlightManager flightManager) {
-            this.flightManager = flightManager;
-            
-            setTitle("View Booked Flights - OPPA Airlines");
-            setSize(1000, 600);
-            setLocationRelativeTo(null);
-            setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-            
-            initComponents();
-            loadBookings();
-        }
-        
-        private void initComponents() {
-            JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-            mainPanel.setBackground(Color.WHITE);
-            mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-            
-            JPanel titlePanel = new JPanel();
-            titlePanel.setBackground(new Color(0, 191, 255));
-            JLabel titleLabel = new JLabel("BOOKED FLIGHTS");
-            titleLabel.setFont(new Font("Arial", Font.BOLD, 28));
-            titleLabel.setForeground(Color.BLACK);
-            titlePanel.add(titleLabel);
-            titlePanel.setBorder(BorderFactory.createEmptyBorder(15, 0, 15, 0));
-            
-            String[] columnNames = {"Booking ID", "Passenger Name", "Email", "Destination", "Class", "Seat Number"};
-            tableModel = new DefaultTableModel(columnNames, 0) {
-                @Override
-                public boolean isCellEditable(int row, int column) {
-                    return false;
-                }
-            };
-            
-            bookingsTable = new JTable(tableModel);
-            bookingsTable.setFont(new Font("Arial", Font.PLAIN, 14));
-            bookingsTable.setRowHeight(30);
-            bookingsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-            bookingsTable.getTableHeader().setBackground(new Color(100, 149, 237));
-            bookingsTable.getTableHeader().setForeground(Color.WHITE);
-            bookingsTable.setSelectionBackground(new Color(173, 216, 230));
-            
-            JScrollPane scrollPane = new JScrollPane(bookingsTable);
-            scrollPane.setBorder(BorderFactory.createLineBorder(new Color(0, 191, 255), 2));
-            
-            JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-            bottomPanel.setBackground(Color.WHITE);
-            
-            JButton refreshButton = createStyledButton("REFRESH", new Color(34, 139, 34));
-            JButton closeButton = createStyledButton("CLOSE", new Color(220, 20, 60));
-            
-            refreshButton.addActionListener(e -> loadBookings());
-            closeButton.addActionListener(e -> dispose());
-            
-            bottomPanel.add(refreshButton);
-            bottomPanel.add(closeButton);
-            
-            JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-            infoPanel.setBackground(Color.WHITE);
-            infoLabel = new JLabel("Total Bookings: 0");
-            infoLabel.setFont(new Font("Arial", Font.BOLD, 16));
-            infoPanel.add(infoLabel);
-            
-            mainPanel.add(titlePanel, BorderLayout.NORTH);
-            mainPanel.add(scrollPane, BorderLayout.CENTER);
-            
-            JPanel bottomContainer = new JPanel(new BorderLayout());
-            bottomContainer.setBackground(Color.WHITE);
-            bottomContainer.add(infoPanel, BorderLayout.NORTH);
-            bottomContainer.add(bottomPanel, BorderLayout.CENTER);
-            mainPanel.add(bottomContainer, BorderLayout.SOUTH);
-            
-            add(mainPanel);
-        }
-        
-        private JButton createStyledButton(String text, Color bgColor) {
-            JButton button = new JButton(text);
-            button.setFont(new Font("Arial", Font.BOLD, 16));
-            button.setBackground(bgColor);
-            button.setForeground(Color.WHITE);
-            button.setFocusPainted(false);
-            button.setBorderPainted(false);
-            button.setPreferredSize(new Dimension(150, 45));
-            button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-            
-            button.addMouseListener(new java.awt.event.MouseAdapter() {
-                public void mouseEntered(java.awt.event.MouseEvent evt) {
-                    button.setBackground(bgColor.darker());
-                }
-                public void mouseExited(java.awt.event.MouseEvent evt) {
-                    button.setBackground(bgColor);
-                }
-            });
-            
-            return button;
-        }
-        
-        private void loadBookings() {
-            tableModel.setRowCount(0);
-            
-            List<Booking> bookings = flightManager.getAllBookings();
-            
-            for (Booking booking : bookings) {
-                Object[] row = {
-                    booking.getBookingId(),
-                    booking.getPassenger().getName(),
-                    booking.getPassenger().getEmail(),
-                    booking.getDestination(),
-                    booking.getSeatClass(),
-                    booking.getSeatNumber()
-                };
-                tableModel.addRow(row);
-            }
-            
-            infoLabel.setText("Total Bookings: " + bookings.size());
-            
-            if (bookings.isEmpty()) {
-                JOptionPane.showMessageDialog(this, 
-                    "No bookings found.", 
-                    "Information", 
-                    JOptionPane.INFORMATION_MESSAGE);
-            }
-        }
     }
 }
